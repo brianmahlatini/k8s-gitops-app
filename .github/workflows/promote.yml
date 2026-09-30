@@ -1,0 +1,48 @@
+# Promote an image that already passed CI to prod by opening a pull request.
+# Review + merge is the approval; Argo CD syncs prod afterwards.
+name: promote
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Image tag to promote (sha-xxxxxxx), must already exist and be signed
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  packages: read
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate input
+        env:
+          TAG: ${{ inputs.tag }}
+        run: '[[ "$TAG" =~ ^sha-[0-9a-f]{7}$ ]] || { echo "tag must look like sha-abc1234"; exit 1; }'
+      - uses: sigstore/cosign-installer@v4.1.2
+      - name: Verify the image exists and was signed by this repo's CI
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          cosign verify "ghcr.io/${{ github.repository }}:${TAG}" \
+            --certificate-identity-regexp "^https://github.com/${{ github.repository }}/.github/workflows/ci.yml@refs/heads/main$" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
+      - name: Update prod overlay
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          curl -sSfL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.8.2/kustomize_v5.8.2_linux_amd64.tar.gz" | sudo tar xz -C /usr/local/bin kustomize
+          cd deploy/overlays/prod
+          kustomize edit set image "ghcr.io/brianmahlatini/k8s-gitops-app=ghcr.io/brianmahlatini/k8s-gitops-app:${TAG}"
+      - uses: peter-evans/create-pull-request@v8
+        with:
+          branch: promote/${{ inputs.tag }}
+          title: "deploy(prod): ${{ inputs.tag }}"
+          commit-message: "deploy(prod): ${{ inputs.tag }}"
+          body: |
+            Promotes `${{ inputs.tag }}` to prod.
+            - Image signature verified against this repository's CI identity.
+            - Merging records the change; sync `k8s-gitops-app-prod` in Argo CD to roll it out.

@@ -1,0 +1,25 @@
+# Dev follows main automatically: every merged commit is deployed, drift is
+# reverted (selfHeal), and deleted manifests are pruned.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: k8s-gitops-app-dev
+  namespace: argocd
+spec:
+  project: k8s-gitops-app
+  source:
+    repoURL: https://github.com/brianmahlatini/k8s-gitops-app.git
+    targetRevision: main
+    path: deploy/overlays/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: app-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+    retry:
+      limit: 5
+      backoff: { duration: 10s, factor: 2, maxDuration: 3m }

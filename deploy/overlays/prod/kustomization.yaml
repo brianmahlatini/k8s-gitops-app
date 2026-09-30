@@ -1,0 +1,41 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: app-prod
+resources:
+  - namespace.yaml
+  - ../../base
+images:
+  - name: ghcr.io/brianmahlatini/k8s-gitops-app
+    newTag: sha-bootstrap # changed only by the promote workflow, through a reviewed pull request
+patches:
+  - target: { kind: HorizontalPodAutoscaler, name: app }
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 3
+      - op: replace
+        path: /spec/maxReplicas
+        value: 12
+  - target: { kind: Deployment, name: app }
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env
+        value:
+          - { name: APP_ENV, value: prod }
+          - { name: LOG_LEVEL, value: info }
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests: { cpu: 200m, memory: 192Mi }
+          limits: { memory: 384Mi }
+      - op: add
+        path: /spec/template/spec/topologySpreadConstraints
+        value:
+          - maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector: { matchLabels: { app.kubernetes.io/name: app } }
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: DoNotSchedule
+            labelSelector: { matchLabels: { app.kubernetes.io/name: app } }

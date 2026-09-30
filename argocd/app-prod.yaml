@@ -1,0 +1,19 @@
+# Prod syncs only on an explicit action after the promotion PR is merged:
+# Git is the record of what should run, a human decides when.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: k8s-gitops-app-prod
+  namespace: argocd
+spec:
+  project: k8s-gitops-app
+  source:
+    repoURL: https://github.com/brianmahlatini/k8s-gitops-app.git
+    targetRevision: main
+    path: deploy/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: app-prod
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=false

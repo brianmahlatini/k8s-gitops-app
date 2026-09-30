@@ -1,0 +1,13 @@
+# Deliberate deviations from checkov defaults, with reasons.
+skip-check:
+  # CPU limits cause CFS throttling of latency-sensitive services without
+  # protecting neighbours (requests already reserve CPU). Memory is limited.
+  - CKV_K8S_11
+  # Images are referenced by immutable sha-<commit> tags written by CI; the
+  # GHCR repo is configured with immutable tags, so digest pinning adds churn
+  # without adding safety, and IfNotPresent avoids a registry round-trip.
+  - CKV_K8S_43
+  - CKV_K8S_15
+  # Kubernetes startup/liveness/readiness probes replace Docker HEALTHCHECK,
+  # which Kubernetes ignores.
+  - CKV_DOCKER_2
