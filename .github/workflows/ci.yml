@@ -29,6 +29,8 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: ruff check . && ruff format --check .
       - run: pytest
+      - name: Dependency vulnerability audit
+        run: pip install pip-audit && pip-audit -r requirements.txt
 
   manifests:
     runs-on: ubuntu-latest
