@@ -10,4 +10,5 @@ ignore = ["S101"]  # asserts are fine in tests
 "tests/*" = ["S"]
 
 [tool.pytest.ini_options]
+pythonpath = ["."]
 addopts = "-q --cov=app --cov-report=term-missing --cov-fail-under=85"
